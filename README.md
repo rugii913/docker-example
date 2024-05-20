@@ -43,19 +43,34 @@
 ## 핵심 정리
 ### Image & Container
 #### Image
-- 애플리케이션 코드와 이를 실행하는 데 필요한 도구, 설정 포함
-- container의 템플릿, 청사진
-- layer based architecture
-   - Dockerfile의 모든 명령이 image context의 각 layer를 나타냄
-  - image 빌드 시 Docker는 모든 명령 결과을 cache, 다시 실행할 필요가 없는 것으로 판단된 명령은 cache된 결과를 사용
-  - 변경이 있을 경우 모든 후속 layer에 대해서 캐시 결과를 사용하지 않음
-- read-only
-  - 명령이 실행되고 image가 빌드되면 image의 code를 변경할 수 없음
-  - 변경이 필요하면 새로운 image 빌드
+- 핵심
+  - 애플리케이션 코드와 이를 실행하는 데 필요한 도구, 설정 포함
+  - container의 템플릿, 청사진
+- 특성
+  - layer based architecture
+    - Dockerfile의 모든 명령이 image context의 각 layer를 나타냄
+    - image 빌드 시 Docker는 모든 명령 결과을 cache, 다시 실행할 필요가 없는 것으로 판단된 명령은 cache된 결과를 사용
+    - 변경이 있을 경우 모든 후속 layer에 대해서 캐시 결과를 사용하지 않음
+  - read-only
+    - 명령이 실행되고 image가 빌드되면 image의 code를 변경할 수 없음
+    - 변경이 필요하면 새로운 image 빌드
 #### Container
-- 소프트웨어 실행 단위 - 애플리케이션과 실행 환경을 포함하는 작은 패키지
-- image의 구체적인 실행 인스턴스
-- container 실행 시 image layer 위에 새로운 container layer를 추가
+- 핵심
+  - 소프트웨어 실행 단위 - 애플리케이션과 실행 환경을 포함하는 작은 패키지
+  - image의 구체적인 실행 인스턴스
+  - container 실행 시 image layer 위에 새로운 container layer를 추가
+- lifecycle
+  - 참고 [Lifecycle of Docker Container](https://medium.com/@BeNitinAgarwal/lifecycle-of-docker-container-d2da9f85959)
+- attached 모드, detached 모드
+  - attached(연결) 모드
+    - container를 foreground에서 실행 (cf. docker run으로 실행할 경우 attached 모드가 디폴트)
+    - container의 출력 결과를 수신(attach to STDIN, STDOUT or STDERR)
+  - detached(분리) 모드
+    - container를 background에서 실행 (cf. docker start로 실행할 경우 detached 모드가 디폴트)
+- interactive 모드
+  - container와 container로 실행 중인 app이 상호작용할 수 있는 모드
+  - STDIN을 open으로 유지, attached 모드가 아니어도 상관 없음
+  - 주로 pseudo-TTY를 할당하여 터미널을 생성하는 옵션과 함께 실행
 #### Dockerfile
 - 자체 이미지를 빌드할 때 실행하려는 명령이 있는 파일
 - Dockerfile 작성
@@ -95,3 +110,29 @@
   - docker run -p \[로컬 포트\]:\[container 노출 포트\] \[image 이름\]
     - container 노출 포트는 image에서 EXPOSE로 노출한 포트
     - cf. -p는 publish(게시)를 의미
+
+## Docker CLI 주요 명령어
+- --help
+  - (모든 Docker CLI 명령어 확인) docker --help
+    - cf. 예전에 사용했으나, 현재는 더 나은 명령어가 나왔기에 거의 사용할 일이 없는 명렁어도 있음
+  - (특정 명령어의 옵션 확인) docker \[명령어\] --help → 해당 명령어에 대한 모든 옵션 확인
+- run
+  - (사용 방법) docker run \[image name\] → image를 기반으로 새 컨테이너를 생성
+    - run으로 다른 옵션 없이 container을 생성 및 시작할 경우 attached - 터미널에서 blocked(foreground 실행)
+    - 이 상태에서 ctrl + c를 입력할 경우 status가 Exited가 됨
+  - \(-d flag\) detached 모드로 실행
+  - \(-i flag 혹은 --interactive\) open STDIN - interactive 모드로 실행
+  - \(-t flag 혹은 --tty\) pseudo-TTY 할당
+- start
+  - (사용 방법) docker start \[container name 혹은 containter id\] → status가 Exited인 container를 다시 시작
+    - start로 다른 옵션 없이 재시작할 경우 detached - 터미널에서 blocking하지 않음(background 실행)
+  - \(-a flag\) attached 모드로 실행 → STDOUT/STDERR와 연결하는 것
+    - 이 상태에서 ctrl + c를 입력할 경우 status가 Exited가 되지 않고 Up으로 계속 실행
+  - \(-i flag 혹은 --interactive\) open STDIN
+    - docker start d-ai .. 로 container에 attached되며 interactive 작업 가능해짐
+- attach
+  - (사용 방법) docker attach \[container name 혹은 containter id\] → detached 모드로 시작된 container에 attach
+    - 이 상태에서 ctrl + c를 입력할 경우 status가 Exited가 됨
+- logs
+  - (사용 방법) docker logs \[container name 혹은 containter id\] → 해당 container의 로그 확인
+  - \(-f flag 혹은 --follow\) Follow log output - 로그 출력 수신 대기, 앞으로 출력되는 로그도 확인하도록 연결
