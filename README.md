@@ -41,8 +41,7 @@
     - [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
 
 ## 핵심 정리
-### Image & Container
-#### Image
+### image
 - 핵심
   - 애플리케이션 코드와 이를 실행하는 데 필요한 도구, 설정 포함
   - container의 템플릿, 청사진
@@ -62,7 +61,7 @@
     - name과 tag를 결합해 unique identifier로 기능함
     - name은 image의 일반적인 이름, 특정 image group을 정의
     - tag는 위 name으로 형성된 특정 image group에서 특정 image를 정의 → 특정 version처럼 사용
-#### Container
+### container
 - 핵심
   - 소프트웨어 실행 단위 - 애플리케이션과 실행 환경을 포함하는 작은 패키지
   - image의 구체적인 실행 인스턴스
@@ -81,8 +80,9 @@
   - container와 container로 실행 중인 app이 상호작용할 수 있는 모드
   - STDIN을 open으로 유지, attached 모드가 아니어도 상관 없음
   - 주로 pseudo-TTY를 할당하여 터미널을 생성하는 옵션과 함께 실행
-#### Dockerfile
+### Dockerfile
 - 자체 이미지를 빌드할 때 실행하려는 명령이 있는 파일
+  - Dockerfile의 각 명령이 image context의 각 layer가 됨
 - Dockerfile 작성
   - image 빌드 시 cache를 사용하도록 명령 순서 최적화 필요
   - \(1\) base image 지정
@@ -120,20 +120,59 @@
   - docker run -p \[로컬 포트\]:\[container 노출 포트\] \[image 이름\]
     - container 노출 포트는 image에서 EXPOSE로 노출한 포트
     - cf. -p는 publish(게시)를 의미
+### image 공유
+- container를 공유하지 않고 image를 공유, 공유된 image를 기반으로 container를 실행
+- cf. Dockerfile 공유
+  - Dockerfile과 함께 app의 source code를 제공, 공유된 파일을 이용해 image 빌드
+  - Dockerfile의 위치를 중심으로 모든 파일과 디렉토리 구조까지 공유되어야 함
+- 빌드된 image 공유
+  - image를 다운(pull)받고 container를 실행하기만 하면 됨
+  - image 자체를 공유할 때는 1. Docker Hub 혹은 2. Private Registry 이용
+- registry: image 공유 위치
+  - (1) Docker Hub: official Docker image registry
+    - public, private, offical image들 존재
+  - (2) private registry: Docker Hub 외에도 다양한 provider 존재
+- 빌드된 image 공유 방법
+  - (공유 시) docker push \[image 이름\]
+  - (사용 시) docker pull \[image 이름\]
+  - 공유를 위해선 먼저 registry에 image의 repository를 생성해두어야 함
+    - registry의 repository와 일치하는 이름을 가진 local registry가 있어야 함
+    - 즉 image의 이름이 registry repository와 같은 image가 있어야 함
+  - private registry에서 image를 공유하고자 할 경우 \[provider url:image 이름\]과 같은 방식으로 host까지 명시해줘야 함
+  - 참고 사항
+    - push 할 때는 의존하고 있는 base image까지 함께 업로드하지 않음
+      - base image에 대한 연결을 설정하고, 추가 정보만 push
+    - tag를 명시하지 않으면 latest tag를 자동으로 부여
 
 ## Docker CLI 주요 명령어 및 그 옵션
 - --help
   - (모든 Docker CLI 명령어 확인) docker --help
     - cf. 예전에 사용했으나, 현재는 더 나은 명령어가 나왔기에 거의 사용할 일이 없는 명렁어도 있음
   - (특정 명령어의 옵션 확인) docker \[명령어\] --help → 해당 명령어에 대한 모든 옵션 확인
+- push → image 업로드
+  - (사용 방법) docker push \[image 이름\]
+    - (private registry를 사용할 경우) docker push \[provider url:image 이름\]
+- push → image 다운로드
+  - (사용 방법) docker pull \[image 이름\]
+    - (private registry를 사용할 경우) docker pull \[provider url:image 이름\]
 - build → Dockerfile을 기반으로 image 빌드
   - (사용 방법) docker build .
   - \(-t flag 혹은 --tag \[list\]\) 빌드할 image에 name:tag 형식으로 image tag 부여
     - ex. docker build -t goals:1 .
+  - cf. 만약 이미 존재하는 image의 이름을 변경하고자 한다면 tag 명령어를 사용
+- tag → 이미 존재하는 image의 image tag(image 이름, repository)를 변경
+  - (사용 방법) docker tag \[image의 현재 이름\] \[변경하고자 하는 이름\]
+  - cf. 이전 image는 제거되지 않고, 변경된 이름을 가진 복제본 생성
+- login → registry에 로그인
+  - (사용 방법) docker login 입력 후 프롬프트에 따라 Username, Password 입력
+    - (옵션을 이용해 Username, Password 입력) docker login -u \[Username\] -p \[Password\]
+    - (다른 registry에 로그인할 경우) docker login \[registry url\]
+  - cf. docker logout으로 registry에서 로그아웃 가능
 - run
   - (사용 방법) docker run \[image name\] → image를 기반으로 새 컨테이너를 생성
     - run으로 다른 옵션 없이 container을 생성 및 시작할 경우 attached - 터미널에서 blocked(foreground 실행)
     - 이 상태에서 ctrl + c를 입력할 경우 status가 Exited가 됨
+    cf. local에 image가 없는 경우 registry에서 자동으로 pull → image가 있다면 image를 업데이트하진 않는다는 의미이기도 함
   - \(-p flag 혹은 --publish \[list\]\) 로컬 머신의 어떤 포트가 container의 특정 포트에 접근하는데 사용되는지 명시 
     - -p \[app에 접근하려는 로컬 포트\]:[내부 container 노출 포트] → ex. -p 3000:80
   - \(-d flag\) detached 모드로 실행
