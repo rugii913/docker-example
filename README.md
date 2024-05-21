@@ -54,11 +54,21 @@
   - read-only
     - 명령이 실행되고 image가 빌드되면 image의 code를 변경할 수 없음
     - 변경이 필요하면 새로운 image 빌드
+- image 정보 검사(inspect)
+  - docker image inspect \[image id 혹은 image repository 이름\]로 image의 정보 확인 가능
+  - image의 full id, 생성 시간, container 구성 정보(노출 포트, 환경 변수, entry point, 사용 OS, layer들 등등)
+- image tags
+  - name:tag로 구성, name은 repository라고도 함 ex. redis:latest
+    - name과 tag를 결합해 unique identifier로 기능함
+    - name은 image의 일반적인 이름, 특정 image group을 정의
+    - tag는 위 name으로 형성된 특정 image group에서 특정 image를 정의 → 특정 version처럼 사용
 #### Container
 - 핵심
   - 소프트웨어 실행 단위 - 애플리케이션과 실행 환경을 포함하는 작은 패키지
   - image의 구체적인 실행 인스턴스
   - container 실행 시 image layer 위에 새로운 container layer를 추가
+    - container는 image 위에 추가된 얇은 명령 layer → 실행 중인 container의 size(용량)은 그리 크지 않음
+    - 동일한 image를 기반으로 실행되는 여러 container는 image 내부 코드를 공유
 - lifecycle
   - 참고 [Lifecycle of Docker Container](https://medium.com/@BeNitinAgarwal/lifecycle-of-docker-container-d2da9f85959)
 - attached 모드, detached 모드
@@ -111,18 +121,26 @@
     - container 노출 포트는 image에서 EXPOSE로 노출한 포트
     - cf. -p는 publish(게시)를 의미
 
-## Docker CLI 주요 명령어
+## Docker CLI 주요 명령어 및 그 옵션
 - --help
   - (모든 Docker CLI 명령어 확인) docker --help
     - cf. 예전에 사용했으나, 현재는 더 나은 명령어가 나왔기에 거의 사용할 일이 없는 명렁어도 있음
   - (특정 명령어의 옵션 확인) docker \[명령어\] --help → 해당 명령어에 대한 모든 옵션 확인
+- build → Dockerfile을 기반으로 image 빌드
+  - (사용 방법) docker build .
+  - \(-t flag 혹은 --tag \[list\]\) 빌드할 image에 name:tag 형식으로 image tag 부여
+    - ex. docker build -t goals:1 .
 - run
   - (사용 방법) docker run \[image name\] → image를 기반으로 새 컨테이너를 생성
     - run으로 다른 옵션 없이 container을 생성 및 시작할 경우 attached - 터미널에서 blocked(foreground 실행)
     - 이 상태에서 ctrl + c를 입력할 경우 status가 Exited가 됨
+  - \(-p flag 혹은 --publish \[list\]\) 로컬 머신의 어떤 포트가 container의 특정 포트에 접근하는데 사용되는지 명시 
+    - -p \[app에 접근하려는 로컬 포트\]:[내부 container 노출 포트] → ex. -p 3000:80
   - \(-d flag\) detached 모드로 실행
   - \(-i flag 혹은 --interactive\) open STDIN - interactive 모드로 실행
   - \(-t flag 혹은 --tty\) pseudo-TTY 할당
+  - \(--rm flag) container를 중지할 때 제거되도록 함
+  - \(--name flag \[string\]) container에 이름을 부여
 - start
   - (사용 방법) docker start \[container name 혹은 containter id\] → status가 Exited인 container를 다시 시작
     - start로 다른 옵션 없이 재시작할 경우 detached - 터미널에서 blocking하지 않음(background 실행)
@@ -136,3 +154,31 @@
 - logs
   - (사용 방법) docker logs \[container name 혹은 containter id\] → 해당 container의 로그 확인
   - \(-f flag 혹은 --follow\) Follow log output - 로그 출력 수신 대기, 앞으로 출력되는 로그도 확인하도록 연결
+- rm → containter를 제거
+  - (사용 방법) docker rm \[container name 혹은 containter id\]
+    - 다음과 같이 여러 container를 한 번에 제거할 수도 있음
+    - docker rm \[container name 혹은 containter id\] \[container name 혹은 containter id\] ...
+    - 실행 중인 container는 기본 rm으로 제거 불가능, stop 후 제거 가능
+  - cf. container prune → 중지된 모든 container를 제거
+    - (사용 방법) docker container prune
+    - cf. docker prune으로는 실행할 수 없음, management command인 container를 꼭 붙여야 함
+- rmi → image를 제거, 기본적으로 image 내부의 모든 layer를 함께 제거
+  - (사용 방법) docker rmi \[image id\]
+      - 다음과 같이 여러 image를 한 번에 제거할 수도 있음
+      - docker rmi \[image id\] \[image id\] ...
+  - 현재 container에서 사용되지 않는 image만 제거 가능, 중지된 container에서 사용 중인 image도 제거 불가
+  - cf. images → 갖고 있는 모든 image 목록 확인
+    - (사용 방법) docker images
+  - cf. image prune → 사용되지 않는 모든 image들 제거
+    - (사용 방법) docker image prune
+- image inspect → image에 대한 정보 출력
+  - (사용 방법) docker image inspect \[image id 혹은 image repository 이름\]
+- cp → 실행 중인 container와 local host machine 간 파일 복사
+  - (사용 방법) docker cp \[source 파일 혹은 디렉토리\] \[destination 경로\]
+    - 디렉토리에 있는 모든 것을 복사하려면 \[디렉토리 경로\] 혹은 \[디렉토리 경로/.\]으로 입력
+    - container가 대상인 경로 쪽에 container name을 명시 ex. local-redis:/app (cf. 마치 C:/Users 같은 느낌)
+    - destination 경로가 존재하지 않으면 생성함
+    - ex1. docker cp dummy/. local-redis:/app
+    - ex2. docker cp local-redis:/app/test.txt test
+  - 오류 발생 가능성 때문에 대체로 사용하지 않는 편이 좋겠지만
+    - web server 구성 파일 변경, 로그 파일 복사 등 간단한 작업에 사용해볼 수 있음
