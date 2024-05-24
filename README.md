@@ -143,6 +143,50 @@
     - push 할 때는 의존하고 있는 base image까지 함께 업로드하지 않음
       - base image에 대한 연결을 설정하고, 추가 정보만 push
     - tag를 명시하지 않으면 latest tag를 자동으로 부여
+### volume과 Docker external data storage
+- volumes → directories on host machine which are mounted(or made available or mapped) into containers
+  - container 외부의 특정 디렉토리에 연결된 Docker container 내부 디렉토리/파일
+  - container가 volume을 mount하면 해당 volume의 data를 container에서 사용 가능
+    - 사용 방식에 따라 container에서 volume에 data을 read, write 할 수 있고, 영속성이 필요한 data를 둘 수도 있음
+- Docker의 external data storage
+  - (external data storage를 이용하는 세 가지 방법) anonymous volume, named volume, bind mount
+    - (세 방법의 공통점) container에서 정의된 경로가 host machine의 volume에 mounted(host machine 특정 경로에 mapped/mirrored) 
+      - cf .anonymous volume이라고 해서 volume의 data가 host machine에 저장되지 않는 게 아님
+  - (1) volume → managed by Docker
+    - anonymous volume, named volume의 공통점
+      - volume은 Docker에 의해서 관리됨
+        - Docker에 의해 관리되므로 container 시작 시 volume이 존재하지 않으면 이를 생성함
+      - host machine에 mapping된 정확한 경로를 찾기 어려우며, docker volume 명령을 통해서만 접근 가능, 직접 access 불가
+    - (1-1) anonymous volume
+      - (사용 방법) docker run -v /app/data ... 혹은 Dockerfile에 VOLUME 명령어 추가
+      - 하나의 특정 container와만 연결될 것으로 예상하고 생성하는 volume으로 생각하면 될 것
+        - container 시작 시 --rm 옵션을 준 경우, container 중지하면 container와 volume 함께 제거
+        - **container 간 data 공유 불가, 같은 image를 사용하더라도 volume 재사용 불가**
+        - **container에 이미 존재하는 특정 data를 수정할 수 없도록 하는 데에 유용함**
+    - (1-2) named volume
+      - (사용 방법) docker run -v volume-name:/app/data ...
+      - 여러 container(특히 중지되고 다시 시작되는 container들)와 연결될 것을 염두에 두고 생성되는 volume
+        - container 시작 시 --rm 옵션을 준 경우, container 제거 후에도 volume 유지
+        - **volume 재사용 가능 → 영속성이 필요하지만, 직접 수정할 필요는 없는 data인 경우 사용**
+        - **여러 container 간 data 공유 가능**
+  - (2) bind mount → managed by user
+    - (사용 방법) docker run -v /absolute/path/in/host/machine:/app/code ...
+    - 명시한 container 내부 경로가 host machine에 mapping된 정확한 경로를 명시
+      - container 제거 후에도 유지 → **영속성이 필요한 data**
+        - Docker 명령어로는 bind mount의 data 삭제 불가, host의 file system에서 data를 직접 삭제 해야 함
+      - bind mount에 있는 data를 수정 가능 → **container 내부 mapping된 경로에 있는 data\(source code까지도\) 수정 가능\(live data\)**
+      - **여러 container 간 data 공유 가능**
+    - cf. Docker Desktop을 사용한다면 Preferences → Resources → FILE SHARING에서 mount 가능한 host machine 경로 설정이 필요할 수 있음
+      - 경로를 작성할 때 Linux에서는 -v $(pwd):/app, Windows에서는 -v "%cd%":/app과 같은 방식으로 바로 가기를 사용할 수 있음
+  - 자세한 사용 예시는 아래 "Docker의 데이터 관리 및 volume 작업 → Docker external data storage를 이용한 permanent app data 작업"을 참고
+  - 유의 사항
+    - Docker container가 시작될 때 bind mount하면 Docker가 host machine의 local 경로를 덮어쓰지는 않지만,
+      - container 내부의 경로가 host machine의 bind mount 경로 내용으로 덮어씌워짐에 유의
+    - 이 문제를 해결하기 위해 mapping하기로 한 container 내부 경로 중 외부 내용으로 덮어쓰면 안 되는 부분이 있음을 알려줘야 함 ex. anonymous volume 활용
+    - Docker는 volume 설정 간 충돌하는 부분이 있는 경우, 내부 경로가 더 구체적인 volume 설정을 우선 적용함
+  - 참고 자료
+    - [Understanding Docker Volumes: Anonymous Volumes, Named Volumes, and Bind Mounts](https://medium.com/@kavindumadushanka972/understanding-docker-volumes-anonymous-volumes-named-volumes-and-bind-mounts-bdae3af94330)
+    - [Docker 컨테이너에 데이터 저장 (볼륨/바인드 마운트)](https://www.daleseo.com/docker-volumes-bind-mounts/)
 
 ## Docker CLI 주요 명령어 및 그 옵션
 - --help
@@ -221,3 +265,80 @@
     - ex2. docker cp local-redis:/app/test.txt test
   - 오류 발생 가능성 때문에 대체로 사용하지 않는 편이 좋겠지만
     - web server 구성 파일 변경, 로그 파일 복사 등 간단한 작업에 사용해볼 수 있음
+- (management command) volume
+  - volume ls → 현재 존재하는 volume 목록\(list\) 확인
+    - (사용 방법) docker volume ls
+    - cf. bind mount는 Docker에 의해 관리되는 volume이 아니므로 목록에 나오지 않음
+  - volume create → volume 생성
+    - (사용 방법) docker volume create \[volume 이름\]
+    - 하지만 수동으로 volume을 생성해두어야할 경우는 많지 않을 것
+  - volume prune → 사용되지 않는 모든 local volume 제거
+  - volume rm → 명시한 volume 제거
+    - (사용 방법) docker volume rm \[volume 이름\] \[volume 이름\] ...
+  - volume inspect → volume에 대한 자세한 정보 출력
+    - (사용 방법) docker volume inspect \[volume 이름\] \[volume 이름\] ...
+      - 옵션으로 -f \[template 이름\]을 줄 경우 특정 format으로 출력 가능 - [참고](https://docs.docker.com/go/formatting/)
+    - CreatedAt, Driver, Name, Mountpoint, Options\(읽기 전용 여부 등 옵션\) 등 표시
+      - (mountpoint) 실제로 data가 저장되는 host machine 상 경로
+        - Docker가 생성한 volume이 있는 위치, 하지만 host machine 파일 시스템 상에서 실제로 확인할 수는 없음    
+
+## Docker의 data 관리 및 volume 작업
+### Docker에서 다루는 data의 종류와 해결 과제
+- Docker에서 다루는 data의 종류
+  - (1) application(source code + environment)
+    - image 빌드 시 image에 복사되는 data
+    - image가 빌드되면 변경 불가(read-only)
+    - image에 저장된 data
+  - (2) temporary app data
+    - app이 실행되는 동안 container에서 생성되는 data, 읽고 쓰기 가능
+    - 없어져도 괜찮은 data → memory, 임시 파일 등으로 저장
+    - container에 저장된 data → image 위에 있는 container를 구성하는 layer
+  - (3) permanent app data
+    - app이 실행되는 동안 container에서 생성되는 data, 읽고 쓰기 가능
+    - 지속되어야 하는 data → DB, 파일 형태로 저장
+      - container가 중지, 재시작, 제거 되더라도 남아야 하는 data
+    - container에 저장되지만, volume의 도움을 받아야 함
+- 해결 과제: Docker container의 data 문제
+  - 기본적으로 local(host machine) file system과 container 혹은 image는 연결되어 있지 않음
+  - Dockerfile로 image를 빌드할 시점의 파일 및 디렉토리가 일종의 snapshot이 된다고 생각할 수 있음
+  - container 내부 file system과 host machine의 local file system은 별개
+    - container 내부 file system은container을 stop해도 사라지지는 않음
+    - 당연히 image 기반으로 구축된 application source code 등도 사라지지 않음
+    - 하지만 container를 제거하면 container의 모든 data 제거
+  - container layer는 read, write 가능이지만, image layers는 read-only
+    - container layer의 data 변경 사항은 image layer에 반영되지 않음
+    - 단지 container layer의 read-write 가능 layer에 저장될 뿐
+### Docker external data storage를 이용한 permanent app data 작업
+- 영속성이 필요한 data, bind mount로 덮어씌워지면 안 되는 data를 고려하여 anonymous volume, named volume, bind mount를 적절히 함께 사용
+  - 유의 사항
+    - Docker container가 시작될 때 bind mount하면 Docker가 host machine의 local 경로를 덮어쓰지는 않지만,
+    - container 내부의 경로가 host machine의 bind mount 경로 내용으로 덮어씌워짐에 유의
+  - anonymous volume를 사용하는 예시 → 영속성이 없음
+    - (ex. Dockerfile 명령어 예시) VOLUME [ "/app/feedback" ]
+    - (ex. Docker CLI 명령어 예시) container 시작 시 -v /app/feedback 옵션 추가
+  - named volume을 사용하는 예시 → data를 수정할 수 없음
+    - (ex. Docker CLI 명령어 예시) docker run -d -p 3000:80 --rm --name feedback-app -v feedback:/app/feedback feedback-node:volumes
+  - bind mount를 사용하는 예시 → bind mount mapping된 host machine 경로의 data가 덮어씌워져서 container의 app이 실행되지 않을 수 있음
+    - (ex. Docker CLI 명령어 예시) docker run -d -p 3000:80 --rm --name feedback-app -v "C:\docker-kubernetes-example\docker-volume-example":/app feedback-node:volumes
+  - 위 세 external data storage를 함께 사용하는 예시
+    - (ex. Docker CLI 명령어 예시) docker run -d -p 3000:80 --rm --name feedback-app -v "/mnt/c/docker-kubernetes-example/docker-volume-example":/app -v feedback:/app/feedback -v /app/node_modules feedback-node:volumes
+      - cf. host machine의 절대 경로 전체를 큰 따옴표로 묶어도 됨, 특히 공백, 특수 문자가 있는 경우 필요할 것 ex.  "~/volume-ex"
+      - mapping하기로 한 container 내부 경로 중 host machine의 bind mount 경로의 내용으로 덮어쓰면 안 되는 부분을 제외하기 위해 anonymous volume을 활용한 것
+        - Docker는 volume 설정 간 충돌하는 부분이 있는 경우, 내부 경로가 더 구체적인 volume 설정을 우선 적용
+        - 즉 위 예시의 경우 /app/node_modules에 mapping되는 곳은 bind mount를 위해 지정된 local 경로가 아닌 anonymous volume  
+          → /app/node_modules가 host의 bind mount 경로의 내용물로 덮어쓰여지지 않게 하는 것
+- Docker를 활용하면서 편리한 개발 환경 구축하기
+  - bind mount까지 적용했다면 image를 다시 build 하지 않아도 source code 변경사항을 app에서 확인 가능
+    - app의 source code를 host machine의 bind mount 경로에 두고, 이 source code를 변경하면 app에서 변경 사항 확인 가능
+    - node.js 서버의 경우 nodemon 라이브러리 사용하면 편리 → souce code 변경사항이 바로 app에 반영
+      - package.json에 devDependencies로 nodemon 추가 및 "npm start" script 설정
+      - Docker file에서 CMD 변경 후 image 다시 빌드하여 라이브러리 추가 내용 반영
+      - cf. Windows OS에서 WSL2를 host machine으로 사용하면서 Windows 파일 시스템에 있는 파일을 변경 중이라면 파일 변경 전파의 문제로 nodemon이 동작하지 않을 수 있음
+        - (참고) [Access Linux filesystems in Windows and WSL 2](https://devblogs.microsoft.com/commandline/access-linux-filesystems-in-windows-and-wsl-2/), [Docker Desktop: WSL 2 Best practices](https://www.docker.com/blog/docker-desktop-wsl-2-best-practices/)
+        - 단순하지만 지저분한 방법으로는 nodemon을 -L 옵션으로 시작할 수 있음 → [nodemon 공식 문서 참고 ](https://github.com/remy/nodemon?tab=readme-ov-file#application-isnt-restarting)
+    - nodemon 같은 라이브러리를 사용하지 않으면, image 빌드는 하지 않더라도 source code 변경사항 적용을 위해 container 재시작 필요
+- 읽기 전용 external data storage
+  - container 쪽에서는 external data storage의 data를 읽기만 가능하게 하려면 :ro를 추가
+    - ex. -v "/mnt/c/docker-kubernetes-example/docker-volume-example":/app:ro
+      - (전체 명령어) docker run --rm -d -p 3000:80 --name feedback-app -v "/mnt/c/docker-kubernetes-example/docker-volume-example":/app:ro -v feedback:/app/feedback -v /app/node_modules feedback-node:volumes
+    - 그 하위 경로까지 수정할 수 없게 함, 하지만 하위 경로이더라도 더 구체적으로 명시된 write 가능 volume이 있다면 수정 가능
