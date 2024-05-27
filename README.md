@@ -325,7 +325,7 @@
         - Docker가 생성한 volume이 있는 위치, 하지만 host machine 파일 시스템 상에서 실제로 확인할 수는 없음    
 
 ## Docker의 data 관리 및 volume 작업
-- [Docker의 storage 관련 공식 문서 참고 자료](https://docs.docker.com/storage/)
+- [Docker Engine의 storage 관련 공식 문서 참고 자료](https://docs.docker.com/storage/)
 ### Docker에서 다루는 data의 종류와 해결 과제
 - Docker에서 다루는 data의 종류
   - (1) application(source code + environment)
@@ -387,3 +387,10 @@
     - ex. -v "/mnt/c/docker-kubernetes-example/docker-volume-example":/app:ro
       - (전체 명령어) docker run --rm -d -p 3000:80 --name feedback-app -v "/mnt/c/docker-kubernetes-example/docker-volume-example":/app:ro -v feedback:/app/feedback -v /app/node_modules feedback-node:volumes
     - 그 하위 경로까지 수정할 수 없게 함, 하지만 하위 경로이더라도 더 구체적으로 명시된 write 가능 volume이 있다면 수정 가능
+
+## Docker container의 통신
+- [Docker Engine의 networking 관련 공식 문서 참고 자료](https://docs.docker.com/network/)
+- conatiner에서 가능한 통신의 종류
+  - 1. container와 web 간 통신
+  - 2. container와 host machine 간 통신
+  - 3. container와 다른 container 간 통신
