@@ -86,7 +86,7 @@
 - Dockerfile 작성
   - image 빌드 시 cache를 사용하도록 명령 순서 최적화 필요
   - \(1\) base image 지정
-    - FROM [image 이름] → ex .FROM node
+    - FROM [image 이름] → ex. FROM node
     - 보통 Docker 파일 첫 줄이 됨
     - 다른 base image 위에 커스텀 이미지를 구축 ex. OS layer , runtime 환경 같은 것들
     - 로컬 시스템에 있는 image 혹은 Docker Hub 등 registry에 있는 image 이름을 명시
@@ -116,10 +116,49 @@
     - CMD가 없는 경우 단지 base image가 실행됨
 - Dockerfile 기반으로 커스텀 image 생성
   - docker build [Dockerfile이 있는 경로] → ex. docker build .
-- 빌드된 커스텀 image를 container로 실행
-  - docker run -p \[로컬 포트\]:\[container 노출 포트\] \[image 이름\]
-    - container 노출 포트는 image에서 EXPOSE로 노출한 포트
-    - cf. -p는 publish(게시)를 의미
+  - 빌드된 커스텀 image를 container로 실행하는 방법은 아래 Docker CLI 주요 명령어 중 run 부분 참고
+- .dockerignore 파일
+  - Dockerfile의 COPY 명령에서 복사해서는 안 되는 파일, 디렉토리 지정 가능
+    - 마치 git에서 .gitignore 파일의 역할과 유사
+- build-time에 사용할 ARGuments와 runtime에 사용할 ENVironment variables
+  - ARG
+    - Dockerfile에서는 ARG 명령어로 설정
+    - docker build 시 --build-arg 옵션 사용
+  - ENV
+    - Dockerfile에서는 ENV 명령어로 설정
+    - container 시작 시 -e 혹은 --env 옵션 사용, 파일에서 불러올 경우 --env-file 옵션 사용
+
+#### ARG와 ENV
+- 하드 코딩된 값 대신 ARG, ENV로 동적으로 부여된 값을 이용해 유연한 image, container를 만들 수 있음
+- (ENV) runtime environment variable → image를 rebuild 하지 않고 환경 변수 값을 설정하여 보다 유연하게 container 구성 가능
+  - [명령어 관련 공식 문서](https://docs.docker.com/reference/dockerfile/#env)
+  - runtime에 application에서도 사용 가능한 값
+  - 방법 1. Dockerfile에 명시
+    - (정의 방법) ENV \[key\] \[value\] 형태
+    - (사용 방법) 정의된 값을 사용할 때는 $\[ key\] 형태로 불러와서 사용
+  - 방법 2. container 시작 시 -e 혹은 --env 옵션 사용
+    - (사용 방법) container 시작 시 옵션으로 --env \[key\]=\[value\] 부여
+      - Dockerfile에 동일한 key의 environment variable이 있었을 경우, run할 때 부여한 value로 덮어 씀
+      - --env 대신 -e로도 가능
+      - 여러 개의 -v flag를 줄 수 있었듯이 여러 개의 -e flag로 여러 환경 변수 부여 가능
+  - 방법 3. environment variable을 위한 별도 파일 작성, container 시작 시 --env-file 옵션 사용
+    - 사용 방법
+      - (관례적으로) .env 파일 사용
+      - 파일에 \[key\]=\[value\] 형태로 여러 환경 변수를 지정
+      - container 시작 시 --env-file \[.env 파일이 있는 경로\]/.env 옵션 추가
+    - 환경 변수를 위한 별도 파일을 작성함으로써 보안 데이터 유출을 막을 수 있음
+      - Dockerfile에 환경 변수를 포함시키면 docker history를 통해 이를 읽을 수 있음
+      - 특히 자격 증명, 개인 키 등은 노출되지 않도록 유의
+      - 별도 환경 변수 파일을 사용할 때도, 형상 관리 시 커밋되지 않도록 유의
+- (ARG) build-time arguments → Dockerfile을 변경하지 않고 다른 argument를 부여하여 보다 유연하게 image build 가능
+  - [명령어 관련 공식 문서](https://docs.docker.com/reference/dockerfile/#arg)
+  - Docker image의 build-time에 사용되는 값이므로 Dockerfile의 CMD 명령어 및 source code에서는 ARG에 정의된 값을 사용할 수 없음에 유의
+  - 방법 1. Dockerfile에 명시
+    - (정의 방법) ARG \[key\]=\[value\] 형태
+      - Dockerfile의 ENV와 다르게 ARG 정의 시에는 "="가 들어감의 유의
+    - (사용 방법) 정의된 값을 Dockerfile 내에서 사용할 때는 $\[key\] 형태로 불러와서 사용
+  - 방법 2. image build 시 --build-arg 옵션으로 명시
+    - (사용 방법) image build 시 옵션으로 --build-arg \[key\]=\[value\] 부여
 ### image 공유
 - container를 공유하지 않고 image를 공유, 공유된 image를 기반으로 container를 실행
 - cf. Dockerfile 공유
@@ -140,7 +179,7 @@
     - 즉 image의 이름이 registry repository와 같은 image가 있어야 함
   - private registry에서 image를 공유하고자 할 경우 \[provider url:image 이름\]과 같은 방식으로 host까지 명시해줘야 함
   - 참고 사항
-    - push 할 때는 의존하고 있는 base image까지 함께 업로드하지 않음
+    - push 할 때는 의존하고 있는 base image까지 함께 업로드 되진 않음
       - base image에 대한 연결을 설정하고, 추가 정보만 push
     - tag를 명시하지 않으면 latest tag를 자동으로 부여
 ### volume과 Docker external data storage
@@ -203,7 +242,8 @@
   - (사용 방법) docker build .
   - \(-t flag 혹은 --tag \[list\]\) 빌드할 image에 name:tag 형식으로 image tag 부여
     - ex. docker build -t goals:1 .
-  - cf. 만약 이미 존재하는 image의 이름을 변경하고자 한다면 tag 명령어를 사용
+    - cf. 만약 이미 존재하는 image의 이름을 변경하고자 한다면 tag 명령어를 사용
+  - \(--build-arg \[key\]=\[value\]\) 빌드 시 ARG 값 부여 혹은 재정의
 - tag → 이미 존재하는 image의 image tag(image 이름, repository)를 변경
   - (사용 방법) docker tag \[image의 현재 이름\] \[변경하고자 하는 이름\]
   - cf. 이전 image는 제거되지 않고, 변경된 이름을 가진 복제본 생성
@@ -222,8 +262,10 @@
   - \(-d flag\) detached 모드로 실행
   - \(-i flag 혹은 --interactive\) open STDIN - interactive 모드로 실행
   - \(-t flag 혹은 --tty\) pseudo-TTY 할당
-  - \(--rm flag) container를 중지할 때 제거되도록 함
-  - \(--name flag \[string\]) container에 이름을 부여
+  - \(--rm flag\) container를 중지할 때 제거되도록 함
+  - \(--name flag \[string\]\) container에 이름을 부여
+  - \(-e flag 혹은 --env \[key\]=\[value\]\) container runtime 환경에서 사용할 환경 변수 부여
+  - \(--env-file \[.env 파일이 있는 경로\]/.env\) container runtime 환경에서 사용할 환경 변수를 .env 파일에서 읽어서 사용
 - start
   - (사용 방법) docker start \[container name 혹은 containter id\] → status가 Exited인 container를 다시 시작
     - start로 다른 옵션 없이 재시작할 경우 detached - 터미널에서 blocking하지 않음(background 실행)
@@ -283,6 +325,7 @@
         - Docker가 생성한 volume이 있는 위치, 하지만 host machine 파일 시스템 상에서 실제로 확인할 수는 없음    
 
 ## Docker의 data 관리 및 volume 작업
+- [Docker의 storage 관련 공식 문서 참고 자료](https://docs.docker.com/storage/)
 ### Docker에서 다루는 data의 종류와 해결 과제
 - Docker에서 다루는 data의 종류
   - (1) application(source code + environment)
@@ -337,6 +380,8 @@
         - (참고) [Access Linux filesystems in Windows and WSL 2](https://devblogs.microsoft.com/commandline/access-linux-filesystems-in-windows-and-wsl-2/), [Docker Desktop: WSL 2 Best practices](https://www.docker.com/blog/docker-desktop-wsl-2-best-practices/)
         - 단순하지만 지저분한 방법으로는 nodemon을 -L 옵션으로 시작할 수 있음 → [nodemon 공식 문서 참고 ](https://github.com/remy/nodemon?tab=readme-ov-file#application-isnt-restarting)
     - nodemon 같은 라이브러리를 사용하지 않으면, image 빌드는 하지 않더라도 source code 변경사항 적용을 위해 container 재시작 필요
+  - cf. 이렇게 bind mount를 이용하여 source code 변경 사항을 바로 반영하는 방식은 개발 환경에서 사용하는 것
+    - 운영 환경에서는 코드의 snapshot을 이용하지, 실시간으로 변경되는 source code를 이용하지 않음 → Dockerfile에서 COPY 명령어는 여전히 필요함
 - 읽기 전용 external data storage
   - container 쪽에서는 external data storage의 data를 읽기만 가능하게 하려면 :ro를 추가
     - ex. -v "/mnt/c/docker-kubernetes-example/docker-volume-example":/app:ro

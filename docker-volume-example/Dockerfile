@@ -9,7 +9,12 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 80
+# 시간이 오래 걸리는 layer와 관련 없는 작업이라면 layer 리빌드를 피하기 위해 Dockerfile의 아래쪽으로 순서를 옮겨줄 것
+ARG DEFAULT_PORT=80
+
+ENV PORT $DEFAULT_PORT
+
+EXPOSE $PORT
 
 # - container 외부 디렉토리에 매핑될 container 내부 위치
 #   - Dockerfile 명령으로 생성할 수 있는 것은 anonymous volume 뿐임
@@ -20,3 +25,4 @@ EXPOSE 80
 # nodemon을 적용해서 시작하기 위해 변경
 # CMD [ "node", "server.js" ]
 CMD [ "npm", "start" ]
+# cf. ARG는 build-time에 사용되므로, CMD에서는 ARG에서 정의된 key을 사용할 수 없음
