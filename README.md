@@ -264,8 +264,11 @@
   - \(-t flag 혹은 --tty\) pseudo-TTY 할당
   - \(--rm flag\) container를 중지할 때 제거되도록 함
   - \(--name flag \[string\]\) container에 이름을 부여
+  - \(-v flag\) bind mount, volume 사용 등에 이용 → 자세한 설명은 아래 storage 부분 참고
   - \(-e flag 혹은 --env \[key\]=\[value\]\) container runtime 환경에서 사용할 환경 변수 부여
   - \(--env-file \[.env 파일이 있는 경로\]/.env\) container runtime 환경에서 사용할 환경 변수를 .env 파일에서 읽어서 사용
+  - \(--network \[network 이름\]\) container를 container network와 연결
+    - cf. -v와 달리 해당 이름을 가진 network가 존재하지 않으면 network를 생성하지는 않음
 - start
   - (사용 방법) docker start \[container name 혹은 containter id\] → status가 Exited인 container를 다시 시작
     - start로 다른 옵션 없이 재시작할 경우 detached - 터미널에서 blocking하지 않음(background 실행)
@@ -298,6 +301,9 @@
     - (사용 방법) docker image prune
 - image inspect → image에 대한 정보 출력
   - (사용 방법) docker image inspect \[image id 혹은 image repository 이름\]
+- container inspect → container에 대한 정보 출력
+  - (사용 방법) docker container inspect \[container 이름\]
+    - "NetworkSettings"의 "IPAddress" 등 정보 확인 가능
 - cp → 실행 중인 container와 local host machine 간 파일 복사
   - (사용 방법) docker cp \[source 파일 혹은 디렉토리\] \[destination 경로\]
     - 디렉토리에 있는 모든 것을 복사하려면 \[디렉토리 경로\] 혹은 \[디렉토리 경로/.\]으로 입력
@@ -323,6 +329,13 @@
     - CreatedAt, Driver, Name, Mountpoint, Options\(읽기 전용 여부 등 옵션\) 등 표시
       - (mountpoint) 실제로 data가 저장되는 host machine 상 경로
         - Docker가 생성한 volume이 있는 위치, 하지만 host machine 파일 시스템 상에서 실제로 확인할 수는 없음    
+- (management command) network
+  - network create → container network 생성
+    - (사용 방법) docker network create \[network 이름\]
+      - (--driver 옵션) 네트워트 생성 시 사용할 Docker network driver 선택 → 생략할 경우 bridge 드라이버 사용
+  - network ls → container network 목록 확인
+    - (사용 방법) docker network ls
+    - cf. bridge, host, none 등 몇 가지 기본 내장 network도 있으므로, 굳이 강제로 제거하지 말 것(prune 명령으로 제거 안 되는 network들)
 
 ## Docker의 data 관리 및 volume 작업
 - [Docker Engine의 storage 관련 공식 문서 참고 자료](https://docs.docker.com/storage/)
@@ -394,3 +407,35 @@
   - 1. container와 web 간 통신
   - 2. container와 host machine 간 통신
   - 3. container와 다른 container 간 통신
+### container와 web 간 통신
+- container는 기본적으로 world wide web에 요청 전송 및 응답 수신/요청 수신 및 응답 전송 가능
+  - 이를 위한 특별한 설정, 코드 변경 불필요
+### container와 host machine 간 통신
+- 특수 도메인 host.docker.internal 이용 → ex. mongodb://host.docker.internal:27017/swfavorites
+  - container가 host machine과 통신하려면 localhost 도메인으로는 불가능
+  - 특수 도메인이 Docker container 내부에서 알 수 있는 host machine의 IP 주소로 변환됨(변환 자체는 Docker에서 알아서 처리)
+### container와 다른 container 간 통신
+- (1) container inspect를 통해 IP 주소 확인 후 IP 주소 직접 명시
+  - 기본적으로는 container 간 통신을 위해 연결하고자 하는 container의 IP 주소를 알아야 함
+  - docker container inpspect \[container 이름\] 명령을 통해 IP 주소 확인 ← "NetworkSettings"의 "IPAddress" 부분의 값 확인
+  - 확인한 연결 대상 IP 주소를 명시하여 연결 수립 → 연결 대상의 IP 주소가 변경되면 image도 rebuild 해야하는 단점
+- (2) container networks를 이용한 통신
+  - container 시작 시 --network 옵션을 이용해 동일한 containter network 안에 있도록 함
+  - 연결 시의 domain 이름은 container 이름을 사용
+    - container 이름이 Docker에 의한 자동 변환 과정을 거쳐 해당 container의 IP 주소로 변환됨
+  - cf. 동일 container network 안에 있는 경우, 통신 시 port에 대한 pulish 불필요
+    - -p 옵션은 host machine으로부터의 연결 혹은 container network 외부로부터의 연결이 필요할 때 사용
+### 참고 사항
+- 위에서 container networks라고 표현한 것은 공식 문서에서는 user-defined bridge networks라 표현
+  - [공식 문서 참고](https://docs.docker.com/network/network-tutorial-standalone/#use-user-defined-bridge-networks)
+  - 공식 문서에서는 default bridge network 사용을 피하고, user-defined bridge networks를 사용할 것을 권한
+- container에서 요청을 전송할 때만 자동 IP 변환(특수 도메인, container 이름 등을 IP로 변환해주는 것)이 발생함에 유의
+  - 요청이 client의 브라우저에서 생성된 경우, 자동으로 IP를 변환해 주지 않음
+- Docker network driver - [공식 문서 참고](https://docs.docker.com/network/drivers/)
+  - (bridge) 디폴트, 같은 host의 다른 container와 통신 가능
+  - (host) container와 host 시스템 간 격리 제거 
+  - (overlay) 서로 다른 host machine에서 실행되는 Docker daemon 연결(swarm 모드에서 작동)
+  - (ipvlan) contiainer의 IPv4, IPv6 주소에 대해 통제하여 통신
+  - (macvlan) container에 커스텀 MAC 주소 설정하여 통신에 이용
+  - (none) 모든 네트워킹 비활성화
+  - (network plugins) container networking에 third-party network plugin 사용

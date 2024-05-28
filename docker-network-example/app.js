@@ -68,7 +68,10 @@ app.get("/people", async (req, res) => {
 });
 
 mongoose.connect(
-  "mongodb://localhost:27017/swfavorites",
+  // "mongodb://localhost:27017/swfavorites", // container의  app은 host machine과 이 도메인으로 통신 불가능
+  // "mongodb://host.docker.internal:27017/swfavorites", // container의 app이 host machine과 통신하려면 특수 도메인 사용
+  // "mongodb://172.17.0.2:27017/swfavorites", // 연결 대상 container의 IP 주소를 직접 명시하는 경우
+  "mongodb://mongodb:27017/swfavorites", // 같은 container network에 있는 경우 container 이름을 도메인으로 사용
   { useNewUrlParser: true },
   (err) => {
     if (err) {
