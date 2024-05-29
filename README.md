@@ -81,6 +81,7 @@
   - STDIN을 open으로 유지, attached 모드가 아니어도 상관 없음
   - 주로 pseudo-TTY를 할당하여 터미널을 생성하는 옵션과 함께 실행
 ### Dockerfile
+- [Dockerfile reference](https://docs.docker.com/compose/intro/history/)
 - 자체 이미지를 빌드할 때 실행하려는 명령이 있는 파일
   - Dockerfile의 각 명령이 image context의 각 layer가 됨
 - Dockerfile 작성
@@ -134,8 +135,9 @@
   - [명령어 관련 공식 문서](https://docs.docker.com/reference/dockerfile/#env)
   - runtime에 application에서도 사용 가능한 값
   - 방법 1. Dockerfile에 명시
-    - (정의 방법) ENV \[key\] \[value\] 형태
-    - (사용 방법) 정의된 값을 사용할 때는 $\[ key\] 형태로 불러와서 사용
+    - (정의 방법) ENV \[key\]=\[value\] 형태
+      - 여러 key-value를 정의하려면 ENV 명령을 여러 번 수행해야 함
+    - (사용 방법) 정의된 값을 사용할 때는 $\[key\] 형태로 불러와서 사용
   - 방법 2. container 시작 시 -e 혹은 --env 옵션 사용
     - (사용 방법) container 시작 시 옵션으로 --env \[key\]=\[value\] 부여
       - Dockerfile에 동일한 key의 environment variable이 있었을 경우, run할 때 부여한 value로 덮어 씀
@@ -439,3 +441,115 @@
   - (macvlan) container에 커스텀 MAC 주소 설정하여 통신에 이용
   - (none) 모든 네트워킹 비활성화
   - (network plugins) container networking에 third-party network plugin 사용
+
+## Docker Compose를 이용한 multi-container 설정 자동화
+- [Docker Compose Manual](https://docs.docker.com/compose/)
+- [Docker Compose file reference](https://docs.docker.com/compose/compose-file/)
+- Linux에서는 별도로 Docker Compose 설치 필요 - [참고](https://docs.docker.com/compose/install/)
+### Docker Compose는?
+- orchestration(자동화된 설정) commands set
+  - 여러 build, run, ... 등 명령을 configuration file을 이용해 하나의 명령으로 실행할 수 있음
+    - cf. 부분적으로만 대체하여 편리하게 이용하는 것이지 완전히 대체하는 것은 아님, docker-compose 명령으로 생성된 image, container, volume 등에 대해 기존 docker 명령 그대로 이용 가능
+- 오해하지 말 것
+  - Docker Compose가 custom image를 위한 Dockerfile을 대체하는 게 아님 → Dockerfile과 함께 작동
+  - Docker Compose가 image나 container을 대체하는 게 아님 → image, container를 더 쉽게 작업할 수 있도록 도와줄 뿐
+  - Docker Compose는 서로 다른 host machine에서 동작하는 multiple container를 관리하기에 좋은 도구는 아님 → 동일한 host machine 내에서 multiple container 관리를 용이하게 함
+- Docker Compose 파일
+  - 터미널에서 docker 명령어를 입력하는 대신 Docker Compose 파일을 작성할 것
+  - 이 Docker Compose 파일에 multi conatiner app을 구성하는 핵심 구성 요소를 정의
+    - 가장 중요한 요소는 service → container를 의미함
+      - 각 service의 published ports, environment variables, volumes, networks 등을 정의
+### Docker Compose 파일 작성하기
+#### docker-compose.yml 준비
+- 프로젝트 루트에 docker-compose.yml 혹은 yaml 파일 생성
+  - yaml 파일은 들여쓰기를 사용하여 구성 옵션 간 종속성을 표현하는 특정한 텍스트 포맷
+  - 이 파일에 \(multi\) container 환경, 프로젝트 설정을 기재할 것
+#### docker-compose.yml 파일의 구성
+- 참고 사항
+  - 각 key는 정해져있는 단어들이므로 오타 있으면 동작하지 않음 → VSCode Docker extension의 자동 완성 적극 사용
+  - 각 value의 문자열은 "쌍따옴표로도 '홑따옴표로도 표현 가능, 따옴표를 생략할 수도 있음
+- version top-level element → obsolete, 현재는 docker-compose.yml 작성 시 version을 명시하지 않음
+  - Docker Compose의 version을 지정 → 사용할 수 있는 Docker Compose 기능과 관련
+  - [Docker Compose의 과거 관련 참고](https://docs.docker.com/compose/intro/history/)
+  - **현재는 Compose Specification 방식으로 동작** → version을 명시하지 않고, 구현 시 알아서 최신 schema를 사용
+- name top-level element
+  - project의 이름을 나타내는 요소
+    - docker-compose.yml에 명시하지 않고, 다른 방식으로 project name을 명시할 수도 있음 → [참고](https://docs.docker.com/compose/project-name/)
+    - 명시하지 않을 경우, docker-compose.yml이 있는 디렉토리의 이름을 자동으로 사용
+  - 환경 변수 COMPOSE_PROJECT_NAME으로 사용됨
+- services top-level element
+  - 중첩된 key-value 형태를 가짐
+    - [services에서 사용할 수 있는 key들에 대한 reference](https://docs.docker.com/compose/compose-file/05-services/)
+  - services의 하위 요소는 각 container가 됨 → 하위 요소의 key가 각 service의 label이 됨
+    - 이 service의 label은 container name과 일치하지는 않음
+    - 이 label은 container name의 일부분으로 선택됨
+    - container name은 \[project의 name\] _ \[service의 name\] _ \[증가하는 숫자\]로 구성
+      - container name을 굳이 지정하고 싶다면, 각 service의 하위 요소로 container_name key를 지정 가능
+  - 각 label 하위로 각 container의 구성을 정의
+    - 자세한 방법은 아래 "docker-compose.yml 파일 중 container 구성 부분" 참고
+- network top-level element
+- volumes top-level element
+  - 각 service에서 사용할 named volume을 나열
+    - named volume의 name을 key에 명시 →, value에는 아무 값도 주지 않음
+    - 각 service에서 명시된 named volume이 있는데, volumes top-level element에 해당 named volume이 없다면 invalid compose project 에러
+  - anonymous volume과 bind mount는 이 element에 명시하지 않음
+#### docker-compose.yml 파일 중 services의 하위 요소 구성
+- 기본적으로 container를 run(create) 할 때 부여하는 옵션들을 이 부분에 명시한다고 생각하면 될 것
+  - cf. (-d 옵션) docker-compose up -d로 가능, (--rm 옵션) docker-compose up -d로 시작했다면 docker-compose down 시 알아서 container 제거
+- image key → container의 image
+  - local image, registry에 있는 image, custom image 모두 가능
+- build key → image 대신 container를 시작할 때 사용할 image의 build에 필요한 정보를 제공
+  - cf. docker compose up 할 때마다 매번 image를 다시 build 하지는 않고, 변경 사항이 있는 경우에만 다시 build
+    - Docker Compose에서 알아서 감지하여 처리
+  - (방법 1) Dockerfile이 있는 디렉토리를 명시 ex. build: ./backend
+  - (방법 2) 중첩 key가 있는 형태, build 하위 요소로 다음을 key-value 형태로 명시
+    - context → Dockerfile이 있는 디렉토리 경로 ex. context: ./backend
+    - dockerfile → Dockerfile의 이름 ex. Dockerfile-backend → dockerfile의 이름이 Dockerfile인 경우 이 방법을 사용할 필요는 없을 것
+    - args → Dockerfile에서 ARG를 사용하는 경우 여기에 key-value 형태로 명시 가능
+- volumes key → container의 volume 설정
+  - "-"(hyphen)을 이용한 중첩 형태 list 표현
+  - \- 뒤에 Docker 명령어에 붙인 것과 같은 문자열을 입력 ex. - data:/data/db:ro
+  - cf. bind mount 시 CLI 명령과 다르게, docker-compose.yml 파일 기준으로 상대 경로 사용 가능
+- environment key → container의 환경 변수 설정
+  - (방법 1) key-value 형태
+  - (방법 2) "-"과 "="을 이용한 list 표현
+- env_file key → container의 환경 변수를 담고 있는 파일 지정
+  - "-"과 "="을 이용한 list 표현, docker-compose.yml 파일 기준 환경 변수 파일의 상대 경로 입력
+- networks key → container가 속해야 하는 모든 네트워크를 특정
+  - "-"과 "="을 이용한 list 표현
+  - 그런데 Docker Compose를 이용할 경우
+    - 하나의 docker-compose.yml에서 정의된 service들은 동일한 네트워크의 일부가 되므로
+    - 각 label의 하위 요소로 networks key를 명시할 경우가 많지 않을 것
+    - cf. 아무런 networks를 명시하지 않았다면 \[project 이름\]_default 라는 이름을 가진 네트워크를 생성하여 사용
+- ports key → container가 publish할 port들
+  - "-"과 "="을 이용한 list 표현
+  - create 시 옵션과 마찬가지로 \[host port\]:\[container port\] 형태
+- depends_on key → 해당 service가 의존하는 service를 명시(해당 service보다 먼저 시작되어야 하는 service)
+  - "-"과 "="을 이용한 list 표현으로 service의 이름 명시
+- stdin_open key → 해당 service에 open input connection이 필요함을 명시, docker create의 -i flag
+  - true 혹은 false
+- tty key → 표준 입력을 위한 터미널 연결, docker create의 -t flag
+  - true 혹은 false
+- container_name key → container 이름을 정확하게 지정하고 싶은 경우
+### Docker Compose로 services 시작하기
+- 터미널에서 docker-compose.yml이 있는 디렉토리로 이동
+- docker-compose up
+  - docker compose up 입력 시 docker-compose.yml 파일 기반으로 image build 및 container 시작
+  - 필요한 image가 있다면 자동으로 다운로드함
+  - detached 모드로 시작하려면 -d 옵션 추가
+- docker-compose down 
+  - docker-compose down 입력 시 service 중지 및 container 제거
+  - docker-compose up 할 때 -d 옵션이 있었다면,
+    - docker-compose down할 때 container까지 알아서 제거 → container 시작 시 -d --rm 옵션이 있었던 것과 같은 효과
+  - volume은 자동으로 제거되지 않음
+    - 사용된 volume까지 제거하려면 -v 옵션 추가 ex. docker-compose down -v
+- cf. container 이름 관련
+  - docker compose up 후 docker ps로 현재 container를 확인해보면 container 이름과 service 이름 불일치
+  - 그럼에도 Docker network 등에서는 service에 부여한 이름을 그대로 사용하면 됨
+  - cf. 각 service의 container_name key로 container name을 정확히 지정할 수 있으나 굳이 필요하지 않음
+- cf. docker-compose build
+  - build 해야할 Dockerfile의 일부를 변경했으나, docker compose up 명령 시 다시 build 하지 않고, 예전 image를 그대로 사용하는 경우
+    - docker compose build 명령으로 다시 build 하도록 함
+    - docker compose up --build로 --build 옵션을 줘서 image rebuild를 강제하며 container 시작까지도 가능
+  - docker-compose.yml 설정을 일부 변경 했으나, 다시 build 하지 않는 경우
+    - docker compose build --no-cache로 기존 cache를 사용하지 않도록 시도

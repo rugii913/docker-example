@@ -1,0 +1,46 @@
+name: docker-compose-ex
+
+services:
+  mongodb: # mongodb 서비스
+    image: mongo:latest
+    volumes:
+      - data:/data/db
+    # environment:
+      ## MONGO_INITDB_ROOT_USERNAME: admin # key-value 형태
+      # - MONGO_INITDB_ROOT_USERNAME=admin # list 형태
+      # - MONGO_INITDB_ROOT_PASSWORD=secret
+    env_file:
+      - ./env/mongo.env
+    # networks:
+    #   - networkName
+  backend: # backend 서비스
+    build: ./backend
+    # build:
+    #   context: ./backend
+    #   dockerfile: Dockerfile # dockerfile의 이름이 Dockerfile인 경우 굳이 이 방법을 사용할 필요는 없음
+    #   args:
+    #     some-arg: 1
+    ports:
+      - 80:80
+    volumes:
+      - logs:/app/logs
+      - ./backend:/app # bind mount 시 CLI 명령과 다르게, docker-compose.yml 파일 기준 상대 경로를 사용할 수 있을 것
+      - /app/node_modules
+    env_file:
+      - ./env/backend.env
+    depends_on:
+      - mongodb
+  frontend: # frontend 서비스
+    build: ./frontend
+    ports:
+      - 3000:3000
+    volumes:
+      - ./frontend/src:/app/src
+    stdin_open: true
+    tty: true
+    depends_on:
+      - backend
+
+volumes:
+  data:
+  logs:
