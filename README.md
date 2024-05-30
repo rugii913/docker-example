@@ -255,22 +255,25 @@
     - (다른 registry에 로그인할 경우) docker login \[registry url\]
   - cf. docker logout으로 registry에서 로그아웃 가능
 - run
-  - (사용 방법) docker run \[image name\] → image를 기반으로 새 컨테이너를 생성
+  - (사용 방법) docker run \[옵션\] \[image 이름\] \[실행할 명령어\] \[arg...\]→ image를 기반으로 새 컨테이너를 생성
     - run으로 다른 옵션 없이 container을 생성 및 시작할 경우 attached - 터미널에서 blocked(foreground 실행)
     - 이 상태에서 ctrl + c를 입력할 경우 status가 Exited가 됨
-    cf. local에 image가 없는 경우 registry에서 자동으로 pull → image가 있다면 image를 업데이트하진 않는다는 의미이기도 함
-  - \(-p flag 혹은 --publish \[list\]\) 로컬 머신의 어떤 포트가 container의 특정 포트에 접근하는데 사용되는지 명시 
-    - -p \[app에 접근하려는 로컬 포트\]:[내부 container 노출 포트] → ex. -p 3000:80
-  - \(-d flag\) detached 모드로 실행
-  - \(-i flag 혹은 --interactive\) open STDIN - interactive 모드로 실행
-  - \(-t flag 혹은 --tty\) pseudo-TTY 할당
-  - \(--rm flag\) container를 중지할 때 제거되도록 함
-  - \(--name flag \[string\]\) container에 이름을 부여
-  - \(-v flag\) bind mount, volume 사용 등에 이용 → 자세한 설명은 아래 storage 부분 참고
-  - \(-e flag 혹은 --env \[key\]=\[value\]\) container runtime 환경에서 사용할 환경 변수 부여
-  - \(--env-file \[.env 파일이 있는 경로\]/.env\) container runtime 환경에서 사용할 환경 변수를 .env 파일에서 읽어서 사용
-  - \(--network \[network 이름\]\) container를 container network와 연결
-    - cf. -v와 달리 해당 이름을 가진 network가 존재하지 않으면 network를 생성하지는 않음
+    - cf. local에 image가 없는 경우 registry에서 자동으로 pull → image가 있다면 image를 업데이트하진 않는다는 의미이기도 함
+  - 명령어 오버라이드
+    - \[실행할 명령어\] 부분에 명령어를 명시하면, 기본 동작 대신 명시한 명령어 실행 가능
+  - 옵션들
+    - \(-p flag 혹은 --publish \[list\]\) 로컬 머신의 어떤 포트가 container의 특정 포트에 접근하는데 사용되는지 명시 
+      - -p \[app에 접근하려는 로컬 포트\]:[내부 container 노출 포트] → ex. -p 3000:80
+    - \(-d flag\) detached 모드로 실행
+    - \(-i flag 혹은 --interactive\) open STDIN - interactive 모드로 실행
+    - \(-t flag 혹은 --tty\) pseudo-TTY 할당
+    - \(--rm flag\) container를 중지할 때 제거되도록 함
+    - \(--name flag \[string\]\) container에 이름을 부여
+    - \(-v flag\) bind mount, volume 사용 등에 이용 → 자세한 설명은 아래 storage 부분 참고
+    - \(-e flag 혹은 --env \[key\]=\[value\]\) container runtime 환경에서 사용할 환경 변수 부여
+    - \(--env-file \[.env 파일이 있는 경로\]/.env\) container runtime 환경에서 사용할 환경 변수를 .env 파일에서 읽어서 사용
+    - \(--network \[network 이름\]\) container를 container network와 연결
+      - cf. -v와 달리 해당 이름을 가진 network가 존재하지 않으면 network를 생성하지는 않음
 - start
   - (사용 방법) docker start \[container name 혹은 containter id\] → status가 Exited인 container를 다시 시작
     - start로 다른 옵션 없이 재시작할 경우 detached - 터미널에서 blocking하지 않음(background 실행)
@@ -315,6 +318,12 @@
     - ex2. docker cp local-redis:/app/test.txt test
   - 오류 발생 가능성 때문에 대체로 사용하지 않는 편이 좋겠지만
     - web server 구성 파일 변경, 로그 파일 복사 등 간단한 작업에 사용해볼 수 있음
+- exec → container에 대해 Dockerfile에 정의된 명령어 외의 다른 명령 실행 가능
+  - (사용 방법) docker exec \[옵션\] \[container 이름\] \[실행할 명령어\] \[arg...\]
+    - docker container exec ... 으로도 가능
+  - 사용 예시
+    - docker exec -it node-container /bin/bash
+      - cf. container를 시작할 때 -it 옵션을 주었더라도, 명령어 실행 시 다시 -it 옵션 필요
 - (management command) volume
   - volume ls → 현재 존재하는 volume 목록\(list\) 확인
     - (사용 방법) docker volume ls
@@ -553,3 +562,38 @@
     - docker compose up --build로 --build 옵션을 줘서 image rebuild를 강제하며 container 시작까지도 가능
   - docker-compose.yml 설정을 일부 변경 했으나, 다시 build 하지 않는 경우
     - docker compose build --no-cache로 기존 cache를 사용하지 않도록 시도
+
+## (application container가 아닌) utility 성격 작업을 위한 container 사용 사례
+- host machine에 node.js를 설치하지 않고 node container 및 bind mount를 이용해 host machine에서 node를 활용한 작업 가능
+### Dockerfile을 사용하는 경우
+- Dockerfile에 다음만 작성된 상태에서 image를 build 하고 실행
+  - FROM node:20-alpine
+  - WORKDIR /app
+- cf. pwd 결과값을 이용한 간편한 실행
+  - (Windows) docker run -it --rm -v ${pwd}:/app node-util npm init
+  - (Linux) $( ) 혹은 \` \`을 이용
+    - docker run -it --rm -v $(pwd):/app node-util npm init
+    - docker run -it --rm -v \`pwd\`:/app node-util npm init
+    - [참고 - 명령어 실행결과를 변수에 할당](https://wikidocs.net/54525)
+- cf. Dockerfile ENTRYPOINT 활용
+  - ENTRYPOINT는 CMD와 유사하지만, docker run 실행 시 입력된 명령어가 ENTRYPOINT를 오버라이드 하지 않고, append 하는 방식으로 동작
+- cf. \(npm 명령어 관련\) npm install \[패키지 이름\] --save
+  - 입력한 패키지 모듈을 설치하면서 package.json의 dependency 항목에도 해당 종속성을 기록함
+  - npm 5부터는 --save가 기본 옵션
+### Docker Compose를 사용하는 경우
+- docker-compose.yml 파일 작성
+  - ./docker-utility-container-example/docker-compose.yml 파일 참고
+- docker compose run을 이용한 실행
+  - docker compose run \[service 이름\] \[실행할 명령어\]
+    - docker-compose.yml 파일에 명시된 service를 개별로 명령어까지 전달하며 실행 가능
+  - ex. docker compose run --rm node-service init
+    - container stop 시 제거되도록 하려면 --rm 옵션 추가(up처럼 -d 옵션이 아님)
+    - 만약 service 이름을 npm으로 정했다면 docker compose run --rm node npm init과 같은 형태가 됨
+      - Dockerfile의 ENTRYPOINT [ "npm" ]과 합쳐져서 자연스러운 모양새가 됨
+- cf. **docker compose up 으로 실행할 수 없음**
+  - ENTRYPOINT로 지정된 npm만 실행하고 종료
+  - docker compose up init 이런 방식으로도 불가능
+    - docker compose up --help 해보면 docker compose up 뒤의 자리는 개별로 실행할 service 이름을 명시하는 자리
+    - up을 이용한 방식은 계속 실행되어야 하는 application container에 적합, utility 성격 container에는 부적합
+### cf. Docker 활용 생성된 파일 관련, 권한 문제 발생할 경우 참고
+- [Avoiding Permission Issues With Docker-Created Files](https://vsupalov.com/docker-shared-permissions/)
