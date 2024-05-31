@@ -14,7 +14,10 @@ services:
       # cf. Laravel에서 응답으로 돌려줄 view 같은 것들을 생성해야하므로 ro 옵션을 주지는 않음
     # ports: # https://github.com/docker-library/php/blob/04bf8d212e841e3e4b05e51882660ab9773f479f/8.1/alpine3.19/fpm/Dockerfile 이런 php Dockerfile을 살펴보면 EXPOSE 9000 확인 가능
       # - "9000:9000" # 그런데 localhost로의 통신이 아니라 container 간 직접 통신이므로 port publish할 필요가 없음
-  # mysql:
+  mysql:
+    image: "mysql:5.7"
+    env_file: # https://hub.docker.com/_/mysql 의 Environment Variables 부분 참고 # homestead는 Laravel 기본 구성값
+      - "./env/mysql.env"
   # composer:
   # artisan:
   # npm:
