@@ -10,7 +10,7 @@ services:
       context: "./dockerfiles"
       dockerfile: "php.dockerfile"
     volumes:
-      -"./src:/var/www/html:delegated" # cf. delegated는 최적화 관련 옵션 - container의 쓰기 작업 시 batch 처리(안정성을 떨어지지만, 속도 향상)
+      - "./src:/var/www/html:delegated" # cf. delegated는 최적화 관련 옵션 - container의 쓰기 작업 시 batch 처리(안정성을 떨어지지만, 속도 향상)
       # cf. Laravel에서 응답으로 돌려줄 view 같은 것들을 생성해야하므로 ro 옵션을 주지는 않음
     # ports: # https://github.com/docker-library/php/blob/04bf8d212e841e3e4b05e51882660ab9773f479f/8.1/alpine3.19/fpm/Dockerfile 이런 php Dockerfile을 살펴보면 EXPOSE 9000 확인 가능
       # - "9000:9000" # 그런데 localhost로의 통신이 아니라 container 간 직접 통신이므로 port publish할 필요가 없음
