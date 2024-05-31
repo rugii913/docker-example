@@ -128,6 +128,9 @@
   - ENV
     - Dockerfile에서는 ENV 명령어로 설정
     - container 시작 시 -e 혹은 --env 옵션 사용, 파일에서 불러올 경우 --env-file 옵션 사용
+- Docker Compose를 이용한 프로젝트에서 여러 dockerfile을 작성할 경우의 관례
+  - dockerfiles 디렉토리 생성
+  - \[service 이름\].dockerfile 형식으로 각 service에 대한 dockerfile을 작성
 
 #### ARG와 ENV
 - 하드 코딩된 값 대신 ARG, ENV로 동적으로 부여된 값을 이용해 유연한 image, container를 만들 수 있음
