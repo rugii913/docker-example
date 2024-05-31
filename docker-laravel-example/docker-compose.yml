@@ -30,5 +30,16 @@ services:
       dockerfile: "composer.dockerfile"
     volumes:
       - "./src:/var/www/html" # Laravel 설치 및 프로젝트 설정 시 ./src에 있는 source code를 이용하도록 함
-  # artisan:
-  # npm:
+  artisan:
+    build:
+      context: "./dockerfiles"
+      dockerfile: "php.dockerfile"
+    volumes:
+      - "./src:/var/www/html"
+    entrypoint: ["php", "/var/www/html/artisan"]
+  npm:
+    image: node:14
+    working_dir: "var/www/html"
+    entrypoint: ["npm"]
+    volumes:
+      - "./src:/var/www/html"
