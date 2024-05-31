@@ -1,5 +1,5 @@
 # nginx config를 이용하기 위해 php-fpm image를 사용해야 함
-FROM php:7.4-fpm-alpine
+FROM php:8.3-fpm-alpine
 
 # 웹 사이트를 제공하는 웹 서버의 표준적인 디렉토리 중 하나 - 웹 app도 여기에 담을 것
 WORKDIR /var/www/html
