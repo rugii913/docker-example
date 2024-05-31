@@ -18,6 +18,11 @@ services:
     image: "mysql:5.7"
     env_file: # https://hub.docker.com/_/mysql 의 Environment Variables 부분 참고 # homestead는 Laravel 기본 구성값
       - "./env/mysql.env"
-  # composer:
+  composer: # Laravel에 의해 내부적으로 사용될 utility 성격 container # 처음 Laravel app을 설정하는 데 사용하기도 할 것
+    build:
+      context: "./dockerfiles"
+      dockerfile: "composer.dockerfile"
+    volumes:
+      - "./src:/var/www/html" # Laravel 설치 및 프로젝트 설정 시 ./src에 있는 source code를 이용하도록 함
   # artisan:
   # npm:
