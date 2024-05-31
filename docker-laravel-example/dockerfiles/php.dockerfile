@@ -7,5 +7,9 @@ WORKDIR /var/www/html
 # 위 base image에 있는 도구 활용(부가 종속성 설치용) - php 확장 프로그램 pdo, pdo_mysql 설치
 RUN docker-php-ext-install pdo pdo_mysql
 
+RUN addgroup -g 1000 laravel && adduser -G laravel -g laravel -s /bin/sh -D laravel
+
+USER laravel
+
 # CMD 명령은 명시 x → 이 경우 base image에 CMD 명령이 있다면, default로 이를 실행
 # 현재 base image인 php의 CMD 명령은 php interpreter를 호출하는 명령

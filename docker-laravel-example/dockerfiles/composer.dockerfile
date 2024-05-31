@@ -1,5 +1,9 @@
 FROM composer:latest
 
+RUN addgroup -g 1000 laravel && adduser -G laravel -g laravel -s /bin/sh -D laravel
+ 
+USER laravel
+
 # 작업 경로를 code가 있을 경로로 설정
 WORKDIR /var/www/html
 
