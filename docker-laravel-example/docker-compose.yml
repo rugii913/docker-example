@@ -1,6 +1,9 @@
 services:
   server: # nginx - 요청을 받고 PHP interpreter를 트리거
-    image: "nginx:stable-alpine"
+    # image: "nginx:stable-alpine" # image 기반이 아닌 dockerfile 기반으로 변경하며 주석 처리
+    build:
+      context: "."
+      dockerfile: "dockerfiles/nginx.dockerfile"
     ports:
       - "8000:80"
     volumes:
@@ -11,8 +14,8 @@ services:
       - php
   php: # PHP, Laravel 코드 실행
     build:
-      context: "./dockerfiles"
-      dockerfile: "php.dockerfile"
+      context: "."
+      dockerfile: "dockerfiles/php.dockerfile"
     volumes:
       - "./src:/var/www/html:delegated" # cf. delegated는 최적화 관련 옵션 - container의 쓰기 작업 시 batch 처리(안정성을 떨어지지만, 속도 향상)
       # cf. Laravel에서 응답으로 돌려줄 view 같은 것들을 생성해야하므로 ro 옵션을 주지는 않음
@@ -32,8 +35,8 @@ services:
       - "./src:/var/www/html" # Laravel 설치 및 프로젝트 설정 시 ./src에 있는 source code를 이용하도록 함
   artisan:
     build:
-      context: "./dockerfiles"
-      dockerfile: "php.dockerfile"
+      context: "."
+      dockerfile: "dockerfiles/php.dockerfile"
     volumes:
       - "./src:/var/www/html"
     entrypoint: ["php", "/var/www/html/artisan"]
