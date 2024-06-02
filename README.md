@@ -567,8 +567,9 @@
     - docker compose build --no-cache로 기존 cache를 사용하지 않도록 시도
 
 ## (application container가 아닌) utility 성격 작업을 위한 container 사용 사례
+### container를 이용한 node.js 실행
 - host machine에 node.js를 설치하지 않고 node container 및 bind mount를 이용해 host machine에서 node를 활용한 작업 가능
-### Dockerfile을 사용하는 경우
+#### Dockerfile을 사용하는 경우
 - Dockerfile에 다음만 작성된 상태에서 image를 build 하고 실행
   - FROM node:20-alpine
   - WORKDIR /app
@@ -583,7 +584,7 @@
 - cf. \(npm 명령어 관련\) npm install \[패키지 이름\] --save
   - 입력한 패키지 모듈을 설치하면서 package.json의 dependency 항목에도 해당 종속성을 기록함
   - npm 5부터는 --save가 기본 옵션
-### Docker Compose를 사용하는 경우
+#### Docker Compose를 사용하는 경우
 - docker-compose.yml 파일 작성
   - ./docker-utility-container-example/docker-compose.yml 파일 참고
 - docker compose run을 이용한 실행
@@ -598,5 +599,31 @@
   - docker compose up init 이런 방식으로도 불가능
     - docker compose up --help 해보면 docker compose up 뒤의 자리는 개별로 실행할 service 이름을 명시하는 자리
     - up을 이용한 방식은 계속 실행되어야 하는 application container에 적합, utility 성격 container에는 부적합
-### cf. Docker 활용 생성된 파일 관련, 권한 문제 발생할 경우 참고
+#### cf. Docker 활용 생성된 파일 관련, 권한 문제 발생할 경우 참고
 - [Avoiding Permission Issues With Docker-Created Files](https://vsupalov.com/docker-shared-permissions/)
+### container을 이용한 Laravel 프로젝트 구성
+- ./docker-laravel-example/docker-compose.yml 과 같이 파일 작성
+  - composer container 구성
+- composer container 구성 후 Laravel 프로젝트 시작
+  - cf. utility 성격 container는 docker compose run ... 을 이용해 하나씩 실행하는 것이 일반적
+  - cf. composer 명령어는 https://laravel.com/docs/11.x#creating-a-laravel-project 등 Laravel 공식 문서 참고
+  - docker compose run --rm composer create-project --prefer-dist laravel/laravel .
+    - 마지막 "." 이 프로젝트가 생성될 폴더 → dockerfile에 명시된 /var/www/html이 될 것
+      - composer로 Laravel 인스톨 시 time out 발생 가능
+        - compose laravel install timeout 구글 검색
+        - 다음의 해결책 고려 https://stackoverflow.com/questions/18917768/why-composer-install-timeouts-after-300-seconds
+          - https://koop.sh/fix-composer-process-timeout-issues/
+          - https://docs.docker.com/compose/environment-variables/set-environment-variables/#set-environment-variables-with-docker-compose-run---env
+          - docker compose run -e COMPOSER_PROCESS_TIMEOUT=600 --rm composer create-project --prefer-dist laravel/laravel .
+  - docker compose up -d server php mysql
+    - docker compose up -d server → server service에 depends_on으로 다른 두 service에 대한 종속성을 추가하면 세 service 모두 실행 가능
+    - docker compose up -d --build server → dockerfile에 변경이 있는 경우 다시 빌드, 변경이 없는 경우 캐시된 image 그대로 사용
+- docker-compose.yml 파일에서 base image 혹은 dockerfile의 내용을 오버라이드 가능
+  - ex. artisan service에 ENTRYPOINT 지정 → entrypoint: ["php", "/var/www/html/artisan"]
+  - ex. npm service에 WORKDIR 지정 → working_dir: "var/www/html"
+  - cf. **결론적으로 docker-compose.yml 에서 할 수 없는 작업은 COPY나 RUN 정도**
+- utility 성격의 artisan, npm service 실행
+  - docker compose run --rm artisan migrate → DB에 data 기록 및 DB 설정 작동 여부 확인(DB 실행중이어야 함)
+- cf. Permission denied 오류 발생하고 있으나 해결하지 못하고 있음
+  - php docker permission 키워드로 검색
+    - https://aschmelyun.com/blog/fixing-permissions-issues-with-docker-compose-and-php/ 참고하려 했으나 복잡함
