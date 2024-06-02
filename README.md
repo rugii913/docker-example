@@ -233,6 +233,8 @@
     - [Docker 컨테이너에 데이터 저장 (볼륨/바인드 마운트)](https://www.daleseo.com/docker-volumes-bind-mounts/)
 
 ## Docker CLI 주요 명령어 및 그 옵션
+- 다음도 참고
+  - [\[Docker-Basic \(3\)\] 도커 기본 명령어 익히기 :D](https://1mini2.tistory.com/23)
 - --help
   - (모든 Docker CLI 명령어 확인) docker --help
     - cf. 예전에 사용했으나, 현재는 더 나은 명령어가 나왔기에 거의 사용할 일이 없는 명렁어도 있음
@@ -627,3 +629,7 @@
 - cf. Permission denied 오류 발생하고 있으나 해결하지 못하고 있음
   - php docker permission 키워드로 검색
     - https://aschmelyun.com/blog/fixing-permissions-issues-with-docker-compose-and-php/ 참고하려 했으나 복잡함
+  - 다음도 참고했으나, 여전히 해결 못 함
+    - [Laravel and Docker permission issue - can’t save files](https://forums.docker.com/t/laravel-and-docker-permission-issue-cant-save-files/114111)
+      - [관련 stackoverflow](https://stackoverflow.com/questions/68872388/laravel-and-docker-permission-issue-cant-save-files)
+    - [리눅스 사용자/그룹 계정 관리 명령어 총정리](https://inpa.tistory.com/entry/LINUX-%F0%9F%93%9A-%EC%82%AC%EC%9A%A9%EC%9E%90-%EA%B3%84%EC%A0%95-%EA%B4%80%EB%A6%AC-%EB%AA%85%EB%A0%B9%EC%96%B4-%F0%9F%92%AF-%EC%A0%95%EB%A6%AC)
