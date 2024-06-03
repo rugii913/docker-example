@@ -633,3 +633,44 @@
     - [Laravel and Docker permission issue - can’t save files](https://forums.docker.com/t/laravel-and-docker-permission-issue-cant-save-files/114111)
       - [관련 stackoverflow](https://stackoverflow.com/questions/68872388/laravel-and-docker-permission-issue-cant-save-files)
     - [리눅스 사용자/그룹 계정 관리 명령어 총정리](https://inpa.tistory.com/entry/LINUX-%F0%9F%93%9A-%EC%82%AC%EC%9A%A9%EC%9E%90-%EA%B3%84%EC%A0%95-%EA%B4%80%EB%A6%AC-%EB%AA%85%EB%A0%B9%EC%96%B4-%F0%9F%92%AF-%EC%A0%95%EB%A6%AC)
+
+## Docker container 배포
+### Docker container 배포 시 유의 사항
+#### bind mount 사용 자제
+- local host machine의 개발 환경에서는 image 리빌드 하지 않아도 반영되는 코드 등 편리한 개발 환경 구축을 위해 bind mount를 사용했을 수 있음
+- 하지만 remote host machine의 프로덕션 환경에서는 source code를 갖고 있어선 안 됨
+  - image 혹은 container가 단 하나의 source여야 함
+    - container 안에 app이 필요로 하는 모든 것이 포함되어야 함
+    - 빌드된 image 안에 이미 source code와 app을 위한 환경이 존재
+  - host machine의 container 주변에 아무 것도 없어야 함
+    - bind mount로 연결된 source code가 아니라 Dockerfile로 image 빌드 시 COPY 명령어로 복사된 source code의 snapshot만으로 동작
+  - 그렇다면 개발 환경과 프로덕션 환경의 차이는 docker run 명령어의 -v 옵션 뿐
+    - Dockerfile에는 bind mount를 위한 명령어가 없었기 때문 → 개발과 프로덕션에 동일한 Dockerfile로 빌드된 image 사용 가능
+    - cf. docker-compose.yml에 bind mount를 정의했다면? → 추후 살펴볼 것????????????????????????????????????????????????????????????????????????????????????????
+### 수동 구성 방식 vs. 관리형 서비스 사용 방식
+#### (방법 1) 수동 구성 방식 - "do-it-yourself" approach
+- remote machine을 먼저 구성해둠
+  - 여기서는 cloud instance로 진행
+- local image를 instance에 push
+  - push 하는 방법 1: source code 배포 → 어차피 container에서 실행할 것이므로 remote machine에서 image를 빌드해야함, 장점이 없음
+  - push 하는 방법 2: 빌드된 image 배포
+    - local 작업
+      - dockerfile을 이용해 image 빌드
+      - docker tag 명령어를 이용해 Docker Hub repository와 같은 이름으로 image tag(이름) 변경
+      - repository와 일치하는 이름을 가진 image를 registry에 public image로 push
+    - remote 작업
+      - cloud에 있는 instance에서 image run → 당연히 instance에도 docker가 설치되어 있어야 함
+      - public image이므로 remote host에 image가 없으면 자동으로 pull
+      - instance의 public IP로 접근하여 정상 동작하는지 확인 가능
+    - source code 변경을 했다면 local에서 image 다시 빌드 후 registry에 push, remote에서 pull
+      - 이 때 단순히 run으로 실행한 경우, latest tag가 있는 image가 이미 있다면 새로 pull 하지 않음
+      - docker pull로 pull을 명시해서 다시 빌드된 latest를 받아와야 함
+- **수동 구성 방식의 단점**
+  - instance 수동 생성 및 구성, 연결
+  - Docker도 수동으로 설치
+  - remote machine을 완전히 소유하는 방식 → 보안까지 포함하여 remote machine의 구성에 대해 책임져야함
+    - 대량 traffic 발생 시에도 수동으로 구성해야함
+    - OS 및 주요 소프트웨어 업데이트도 수동으로 해야함
+    - 보안 그룹, 방화벽 등 네트워크도 수동으로 관리
+    - remote machine에 SSH 접속하여 직접 명령 필요
+  - 이보다 간편한 다른 방식(관리형 서비스)이 있음 → 서버, 방화벽, 네트워크 관리에 집중하지 않고 source code 작성 및 dockerized app 구축에만 집중할 수 있도록 할
